@@ -1,0 +1,12 @@
+Order,Service,Command,Purpose
+1,Redis,redis-server,Starts the task queue & cache.
+2,Worker,cd worker && python main.py,Runs the AI scraping & summarizing engine.
+3,Backend,cd backend && python main.py,Runs the API server (Port 8000).
+4,Frontend,cd frontend && npm run dev,Runs the Nexus Research UI (Port 5173).
+
+
+
+T1) sudo systemctl restart redis-server && redis-cli flushall && redis-cli ping
+T2) cd ~/Projects/linkedin-researcher/backend && source venv/bin/activate && celery -A worker.celery_app worker --loglevel=info
+T3) cd ~/Projects/linkedin-researcher/backend && source venv/bin/activate && uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+T4) cd ~/Projects/linkedin-researcher/frontend && npm run dev

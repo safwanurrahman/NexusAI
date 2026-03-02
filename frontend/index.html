@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus Research | Global Intelligence</title>
+  
+  <style>
+    /* Targeting every possible layer to prevent the 'switch' */
+    html, body, #root {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background-color: #020617 !important;
+      background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.8)), 
+                        url('/background.jpg') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-attachment: fixed !important;
+      background-repeat: no-repeat !important;
+      color: white !important;
+    }
+
+    /* Keep the fade-in, but apply it to the content, not the background */
+    .app-fade-in {
+      opacity: 0;
+      animation: nexusFadeIn 0.8s ease-out forwards;
+    }
+
+    @keyframes nexusFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root" class="app-fade-in"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
