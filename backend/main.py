@@ -13,10 +13,13 @@ app = FastAPI(title="Scalable LinkedIn AI", version="2.0")
 search_cache = {}
 CACHE_TTL = 3600
 
-# ENSURE THIS IS AT THE TOP - This prevents the 'Failed to Fetch' error
+# Updated CORS configuration for Production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Change to ["http://localhost:5173"] in production
+    allow_origins=[
+        "http://localhost:5173",                # Local development
+        "https://nexusresearch-ai.netlify.app"  # Your live Netlify site
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
