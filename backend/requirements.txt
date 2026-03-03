@@ -4,3 +4,8 @@ requests
 python-dotenv
 openai
 pydantic
+celery
+redis
+fastapi
+uvicorn
+openai
