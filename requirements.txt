@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+requests
+python-dotenv
+openai
+pydantic
+celery
+redis
+fastapi
+uvicorn
+openai
+pydantic-settings
+pydantic-settings>=2.0.0
