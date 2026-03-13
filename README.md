@@ -1,21 +1,38 @@
-# NexusAI: Intelligent LinkedIn Research Assistant
+# NexusAI: LinkedIn Researcher 🚀
 
-NexusAI is a full-stack research tool that automates the extraction of professional insights from LinkedIn. It leverages **FastAPI**, **React**, and **OpenAI** to transform raw profile data into actionable summaries.
+NexusAI is a powerful, automated research agent designed to perform deep-dive analysis on LinkedIn profiles. By combining modern web scraping with Large Language Models (LLMs), it generates high-quality professional summaries and insights in seconds.
 
-## Key Features
-* **Dual-Mode Deployment**: Engineered with a "Manual Toggle" system allowing seamless switching between local development and cloud production (Railway/Netlify).
-* **Asynchronous Processing**: Implemented a non-blocking architecture using **Celery** and **Redis** (with a local **threading** fallback) to handle high-latency scraping tasks.
-* **Intelligent Summarization**: Integrated **OpenAI GPT-3.5/4** to generate concise 2-sentence insights from raw LinkedIn professional summaries.
-* **Real-time Polling**: Developed a custom React hook for efficient status polling, ensuring a smooth UX while background tasks process.
+## 🏗️ The Architecture
 
-## Technical Stack
-- **Backend**: Python, FastAPI, Pydantic (v2), Celery, Uvicorn
-- **Frontend**: React (Vite), TypeScript, Tailwind CSS
-- **Data Sourcing**: Proxycurl LinkedIn API
-- **Infrastructure**: Redis, Git, Railway (API), Netlify (UI)
+The project is built using a **distributed microservices architecture** to ensure the user interface remains responsive while heavy background tasks (AI processing) are handled asynchronously.
 
-## Architecture
-The system uses a "Waiter-Chef" model:
-1. **The Waiter (FastAPI)**: Receives the research request and validates data via Pydantic.
-2. **The Conveyor (Redis)**: Hands off the task to the background queue.
-3. **The Chef (Celery Worker)**: Scrapes LinkedIn via Proxycurl and processes data through the OpenAI Brain.
+
+
+### Tech Stack
+* **Frontend**: React (Vite) + Tailwind CSS (hosted on `localhost:8080`)
+* **Backend API**: FastAPI (Python 3.12)
+* **Task Queue**: Celery (Distributed task execution)
+* **Message Broker**: Redis (High-speed in-memory data store)
+* **Containerization**: Docker & Docker Compose
+* **AI/Scraping**: OpenAI GPT-4 & Proxycurl API
+
+---
+
+## ⚡ Quick Start
+
+### 1. Prerequisites
+Make sure you have [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your machine.
+
+### 2. Environment Setup
+Create a `.env` file in the `backend/` directory and add your API keys:
+
+```env
+# External APIs
+PROXYCURL_API_KEY=your_proxycurl_key
+OPENAI_API_KEY=your_openai_key
+
+# Docker Internal Networking
+REDIS_URL=redis://redis:6379/0
+
+# CORS
+BACKEND_CORS_ORIGINS=["http://localhost:8080"]
