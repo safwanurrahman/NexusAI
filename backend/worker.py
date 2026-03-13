@@ -4,11 +4,13 @@ from celery import Celery
 from backend.services.linkedin_search import search_linkedin
 from backend.services.openai_ext import summarize_article
 from dotenv import load_dotenv
+from backend.core.config import get_settings
 
 # Load API keys from .env
 load_dotenv()
 
-broker_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+settings = get_settings()
+broker_url = settings.REDIS_URL
 
 # Setup Celery: Redis acts as both the Broker (Post Office) and Backend (Storage)
 celery_app = Celery(

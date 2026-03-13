@@ -6,13 +6,14 @@ from backend.core.config import get_settings
 def setup_cors(app: FastAPI) -> None:
     settings = get_settings()
 
-    # The "OR" Condition: Always allow local dev AND production
     allow_origins = [
         "http://localhost:8080",
         "http://localhost:5173",
         "http://127.0.0.1:8080",
-        "https://nexusresearch-ai.netlify.app",
     ]
+
+    # ☁️ CLOUD ORIGINS (Commented out for now)
+    # allow_origins = ["https://nexusresearch-ai.netlify.app"]
 
     # Dynamically add from Railway environment variables if they exist
     if settings.BACKEND_CORS_ORIGINS:

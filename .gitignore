@@ -1,7 +1,15 @@
 node_modules/
 __pycache__/
-.env
+**.env
 .DS_Store
 dist/
 venv/
 *.log
+.pytest_cache/
+*.pyc
+*.pyo
+*.py[cod]
+.docker/
+.venv
+.git
+.env

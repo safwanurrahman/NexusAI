@@ -10,3 +10,10 @@ T1) sudo systemctl restart redis-server && redis-cli flushall && redis-cli ping
 T2) cd ~/Projects/linkedin-researcher/backend && source venv/bin/activate && celery -A worker.celery_app worker --loglevel=info
 T3) cd ~/Projects/linkedin-researcher/backend && source venv/bin/activate && uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 T4) cd ~/Projects/linkedin-researcher/frontend && npm run dev
+
+
+Terminal,Path,Command
+1 (Redis),Anywhere,redis-cli monitor
+2 (API),~/Projects/linkedin-researcher,source backend/venv/bin/activate && uvicorn backend.main:app --reload
+3 (Worker),~/Projects/linkedin-researcher,source backend/venv/bin/activate && celery -A backend.worker worker --loglevel=info
+4 (UI),~/Projects/linkedin-researcher/frontend,npm run dev -- --port 8080

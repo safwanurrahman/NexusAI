@@ -1,12 +1,13 @@
 import { useState, useCallback } from "react";
 
 // Fallback for local development
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
+// --- MANUAL BACKEND TOGGLE ---
 
-// THE "OR" CONDITION: Uses VITE_BACKEND_URL if present (Cloud), 
-// otherwise defaults to your local machine (127.0.0.1).
-export const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL?.trim() || DEFAULT_BACKEND_URL;
+// 🏠 LOCAL MODE (Keep this active for now)
+export const BACKEND_URL = "http://127.0.0.1:8000";
+
+// ☁️ CLOUD MODE (Keep this commented out until local is 100% fixed)
+// export const BACKEND_URL = "https://nexusai-production-370f.up.railway.app";
 
 interface Article {
   title: string;
