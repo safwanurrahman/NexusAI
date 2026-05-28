@@ -62,20 +62,7 @@ const Index = () => {
   };
 
   return (
-    /* THE FIX: This inline style blocks Tailwind from covering your image.
-       The linear-gradient acts as the dark overlay for text legibility.
-    */
-    <div 
-      className="min-h-screen w-full"
-      style={{
-        backgroundColor: '#020617',
-        backgroundImage: 'linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.8)), url("/background.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
+    <div className="min-h-screen w-full bg-background">
       <header className={`relative transition-all duration-700 ${hasSearched ? 'py-8' : 'py-20 sm:py-32'}`}>
         <div className="relative container max-w-5xl text-center">
           <Link 

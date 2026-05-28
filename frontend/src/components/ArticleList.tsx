@@ -1,5 +1,6 @@
 import type { Article } from "@/types/article";
 import { ArticleCard } from "./ArticleCard";
+import { InsightAnalysis } from "./InsightAnalysis";
 import { FileSearch, Sparkles, Linkedin, Twitter } from "lucide-react";
 
 interface ArticleListProps {
@@ -127,6 +128,8 @@ export function ArticleList({
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-700">
+      <InsightAnalysis articles={articles} />
+
       {/* Two-Column Layout */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* LinkedIn Column */}
