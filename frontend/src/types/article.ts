@@ -3,6 +3,7 @@ export interface Article {
   summary: string;
   author: string;
   url: string;
+  platform: "linkedin" | "twitter";  // Identifies source
 }
 
 export interface SearchResponse {

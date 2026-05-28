@@ -1,0 +1,594 @@
+================================================================================
+                    PROJECT REPORT: NexusAI - LINKEDIN RESEARCHER
+================================================================================
+Repository: safwanurrahman/NexusAI
+Location: /home/udoiiii/Projects/linkedin-researcher
+Last Commit: c1caeb1 - "chore: setup docker architecture and git ignores"
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+PROJECT NAME: NexusAI - Intelligent LinkedIn Research Assistant
+
+DESCRIPTION:
+NexusAI is a full-stack research automation tool that extracts professional 
+insights from LinkedIn. It processes user queries, searches LinkedIn content, 
+and generates AI-powered 2-sentence summaries using OpenAI.
+
+KEY FEATURES:
+- Dual-Mode Deployment (Local development + Cloud production toggle)
+- Asynchronous Background Processing (Celery + Redis with threading fallback)
+- Intelligent Summarization (OpenAI GPT-4o-mini integration)
+- Real-time Polling (Custom React hook for smooth UX)
+- Country-based Filtering (Global or region-specific searches)
+- Cache System (1-hour TTL for repeated queries)
+- Task Management (Start, check status, and stop research tasks)
+
+DEPLOYMENT TARGETS:
+- Backend: Railway (API server)
+- Frontend: Netlify (UI client)
+- Local Development: Docker Compose
+
+================================================================================
+2. TECHNICAL STACK
+================================================================================
+
+BACKEND:
+- Language: Python 3.12
+- Framework: FastAPI (REST API)
+- Task Queue: Celery (Background job processing)
+- Message Broker: Redis (Task queue + result backend)
+- Validation: Pydantic v2
+- Server: Uvicorn
+- External APIs: Serper (LinkedIn search), Proxycurl (LinkedIn profiles), 
+                 OpenAI (GPT-4o-mini summarization)
+
+FRONTEND:
+- Framework: React 18 + TypeScript
+- Build Tool: Vite
+- Styling: Tailwind CSS
+- Component Library: shadcn/ui (Radix UI primitives)
+- State Management: React Query (TanStack Query v5)
+- Routing: React Router v6
+- Form Handling: React Hook Form + Zod validation
+- UI Utilities: Sonner (toast notifications), Lucide icons
+
+DATABASE & CACHING:
+- Message Queue: Redis (Celery broker + result backend)
+- In-Memory Cache: Python dict with 1-hour TTL
+- Task State Storage: Redis
+
+INFRASTRUCTURE & DEPLOYMENT:
+- Containerization: Docker + Docker Compose
+- Version Control: Git
+- Environment Management: .env files (local) + Railway/Netlify secrets (cloud)
+
+THIRD-PARTY SERVICES:
+- Serper API: LinkedIn content search (site:linkedin.com)
+- Proxycurl API: LinkedIn profile data extraction
+- OpenAI API: Article summarization
+- Supabase: Authentication framework (integrated in frontend)
+
+================================================================================
+3. PROJECT STRUCTURE
+================================================================================
+
+ROOT DIRECTORY:
+/home/udoiiii/Projects/linkedin-researcher/
+├── backend/                    # Python FastAPI backend
+├── frontend/                   # React TypeScript frontend
+├── docker-compose.yml          # Local development orchestration
+├── package-lock.json           # Node.js dependency lock
+├── test_relay.py               # Testing utility
+├── launcher.txt                # Deployment launcher config
+├── README.md                   # Project documentation
+└── .env files                  # Environment variables (not tracked)
+
+BACKEND STRUCTURE (/backend):
+├── main.py                     # FastAPI entry point + HTTP endpoints
+├── worker.py                   # Celery task definitions
+├── requirements.txt            # Python dependencies
+├── Dockerfile                  # Backend container image
+├── .env                        # Backend env variables (local)
+├── core/
+│   ├── config.py              # Settings management (Pydantic)
+│   └── cors.py                # CORS configuration
+├── models/
+│   ├── schemas.py             # Request/Response Pydantic models
+│   └── article.py             # Article model definition
+├── routes/
+│   └── __init__.py            # Route registrations
+└── services/
+    ├── linkedin_search.py     # Serper API integration (Scout)
+    ├── openai_ext.py          # OpenAI summarization (Translator)
+    ├── proxycurl.py           # Proxycurl LinkedIn profile fetch
+    └── external.py            # External service utilities
+
+FRONTEND STRUCTURE (/frontend):
+├── src/
+│   ├── App.tsx                # Root component + routing
+│   ├── main.tsx               # React entry point
+│   ├── vite-env.d.ts          # Vite environment types
+│   ├── pages/
+│   │   ├── Index.tsx          # Main search interface (154 lines)
+│   │   └── NotFound.tsx       # 404 page
+│   └── components/            # Reusable UI components
+├── public/                    # Static assets
+├── package.json               # Node.js dependencies
+├── vite.config.ts             # Vite build configuration
+├── vitest.config.ts           # Vitest test configuration
+├── tailwind.config.ts         # Tailwind CSS configuration
+├── tsconfig.*.json            # TypeScript configurations
+├── components.json            # shadcn/ui components registry
+├── Dockerfile                 # Frontend container image
+├── .env                       # Frontend env variables
+└── supabase/                  # Supabase configuration
+
+================================================================================
+4. CODEBASE METRICS
+================================================================================
+
+CODE VOLUME:
+- Backend Python Code: ~105,867 lines (includes dependencies in .venv)
+- Frontend TypeScript Code: ~5,117 lines (includes node_modules)
+- Main Application Code (estimated):
+  * Backend: ~500-600 lines (core logic)
+  * Frontend: ~1,500-2,000 lines (UI + logic)
+
+DEPENDENCIES:
+
+Python (Backend - requirements.txt):
+- fastapi: Web framework
+- uvicorn: ASGI server
+- requests: HTTP client
+- python-dotenv: Environment variable management
+- openai: OpenAI API client
+- pydantic: Data validation
+- pydantic-settings>=2.0.0: Settings management
+- celery: Task queue
+- redis: Message broker client
+- anyio: Async I/O library
+- httpx: Async HTTP client
+
+Node.js (Frontend - package.json):
+- React 18.3.1
+- TypeScript 5.8.3
+- Vite 5.4.19
+- Tailwind CSS 3.4.17
+- React Router 6.30.1
+- React Query 5.83.0
+- shadcn/ui components (Radix UI based)
+- Zod 3.25.76 (Schema validation)
+- React Hook Form 7.61.1
+- Supabase 2.98.0
+- Sonner 1.7.4 (Notifications)
+- Recharts 2.15.4 (Charts)
+
+================================================================================
+5. CORE FUNCTIONALITY & ARCHITECTURE
+================================================================================
+
+ARCHITECTURE PATTERN: "Waiter-Chef-Scout-Translator Model"
+
+REQUEST FLOW (Happy Path):
+1. Frontend User: Enters query + optional country, clicks "Search"
+2. Waiter (FastAPI main.py):
+   - Validates request via Pydantic schema
+   - Checks in-memory cache (query_country key)
+   - If cached: Returns immediately
+   - If miss: Dispatches task to Celery + returns task_id
+3. Conveyor (Redis):
+   - Stores task metadata
+   - Queues the job for workers
+4. Chef (Celery worker in worker.py):
+   - Receives task from queue
+   - Calls Scout service (linkedin_search.py)
+5. Scout (Serper API):
+   - Searches LinkedIn with site:linkedin.com filter
+   - Applies country filter (gl parameter) if specified
+   - Returns 10 organic search results
+6. Translator (OpenAI API):
+   - For each result: Sends snippet to GPT-4o-mini
+   - System prompt: "Summarize into 2 concise sentences"
+   - Returns refined summary
+7. Chef Assembly:
+   - Builds ArticleSummary objects
+   - Stores results in Redis via Celery backend
+8. Waiter Polling:
+   - Frontend polls GET /results/{task_id}
+   - On completion: Caches result, returns success
+9. Frontend Display:
+   - Renders list of articles with title, author, link, summary
+
+KEY ENDPOINTS:
+
+POST /research
+- Request: { query: string, country?: string }
+- Response: { status: "processing"|"success"|"error", task_id?, data?, message? }
+- Behavior: Checks cache, dispatches Celery task
+
+GET /results/{task_id}
+- Response: ResearchResponse with status update
+- Behavior: Checks task state (pending/success/failure/revoked)
+
+POST /research/stop/{task_id}
+- Behavior: Revokes task with SIGKILL signal
+- Cleanup: Removes metadata, clears cache if exists
+
+GET /
+- Health check endpoint
+
+CACHING SYSTEM:
+- TTL: 3600 seconds (1 hour)
+- Key Format: "{query}_{country}" (both lowercased)
+- Stored in: In-memory Python dict on API server
+- Invalidation: On completion or expiration
+- Benefit: Instant response for repeated searches
+
+DATA MODELS (Pydantic):
+
+ResearchRequest:
+- query: str (required)
+- country: str (optional, default="all")
+
+ArticleSummary:
+- title: str (default="Untitled Article")
+- link: str (default="")
+- author: str (default="Unknown")
+- summary: str (required)
+
+ResearchResponse:
+- status: str ("processing"|"success"|"error"|"pending")
+- data: List[ArticleSummary] (optional)
+- task_id: str (optional)
+- message: str (optional, for errors)
+
+================================================================================
+6. API INTEGRATIONS
+================================================================================
+
+SERPER API (LinkedIn Search):
+- Endpoint: https://google.serper.dev/search
+- Method: POST
+- Auth: X-API-KEY header
+- Query: site:linkedin.com {user_query}
+- Params: num=10, gl={country_code} (optional)
+- Returns: JSON with 'organic' array (title, link, snippet)
+
+PROXYCURL API (LinkedIn Profile Data):
+- Endpoint: https://nubela.co/proxycurl/api/v2/linkedin
+- Method: GET
+- Auth: Bearer token in Authorization header
+- Params: url={linkedin_profile_url}
+- Returns: Detailed profile data (name, experience, education, etc.)
+- Note: Currently implemented but not actively used in search flow
+
+OPENAI API (Summarization):
+- Model: gpt-4o-mini
+- Max Tokens: 150
+- System Prompt: "Summarize LinkedIn content into 2 concise sentences"
+- Input: Truncated snippet (max 800 chars to control costs)
+- Output: 2-sentence summary
+- Error Fallback: "Summary unavailable (Available in pro version)"
+
+================================================================================
+7. FRONTEND FEATURES & COMPONENTS
+================================================================================
+
+MAIN PAGE (Index.tsx):
+- Search input field (query)
+- Country selector dropdown (all/bd/us/gb/etc.)
+- Search button
+- Results display area
+- Task status polling (custom React Query hook)
+- Loading spinner with task ID display
+- Stop/Cancel button (while processing)
+- Error message display
+- Real-time status updates (pending → success/error)
+
+UI COMPONENTS (from shadcn/ui):
+- Button
+- Input fields
+- Select dropdowns
+- Toast notifications (Sonner)
+- Loading spinners
+- Cards for result display
+- Tooltip for help text
+
+STYLING:
+- Tailwind CSS utility classes
+- Dark theme with custom colors
+- Tech-inspired background (freepik particle effect)
+- Responsive layout (mobile-first)
+- Semi-transparent overlay for readability
+- Backdrop blur effects
+
+INTEGRATION:
+- React Router for navigation
+- React Query for API data fetching + polling
+- Zod for form validation
+- React Hook Form for form state management
+- Supabase imports (framework integrated but not actively used)
+
+================================================================================
+8. DEPLOYMENT & ENVIRONMENT CONFIGURATION
+================================================================================
+
+LOCAL DEVELOPMENT (Docker Compose):
+Services:
+1. Redis (port 6379)
+   - Image: redis:alpine
+   - Role: Message broker + result backend
+
+2. Backend API (port 8000)
+   - Build: ./backend/Dockerfile
+   - Env: PYTHONPATH=/app
+   - Command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+   - Depends on: Redis
+
+3. Celery Worker
+   - Build: ./backend/Dockerfile
+   - Command: celery -A backend.worker.celery_app worker --loglevel=info --pool=solo
+   - Env: PYTHONPATH=/app
+   - Depends on: Redis
+
+4. Frontend Dev (port 8080)
+   - Build: ./frontend/Dockerfile
+   - Env: VITE_BACKEND_URL=http://localhost:8000
+   - Command: npm run dev -- --host 0.0.0.0 --port 8080
+
+ENVIRONMENT VARIABLES:
+
+Backend (.env):
+- PROXYCURL_API_KEY: LinkedIn data fetching
+- OPENAI_API_KEY: AI summarization
+- SERPER_API_KEY: LinkedIn search (not shown in requirements, but required)
+- REDIS_URL: "redis://redis:6379/0" (default)
+
+Frontend (.env):
+- VITE_BACKEND_URL: API endpoint URL
+
+MANUAL TOGGLES (For Production):
+Hardcoded toggle comments in:
+- backend/main.py: APP title (LOCAL vs PRODUCTION)
+- backend/core/config.py: CORS origins
+- backend/services/proxycurl.py: API key sourcing
+
+Note: Switch between LOCAL and CLOUD mode by uncommenting lines
+
+CLOUD DEPLOYMENT:
+- Backend: Railway (uses platform environment variables)
+- Frontend: Netlify (uses VITE_BACKEND_URL secrets)
+
+================================================================================
+9. DEBUG & LOGGING
+================================================================================
+
+LOGGING STRATEGY:
+- Print-based logging throughout codebase
+- Emoji prefixes for quick visual scanning:
+  * 🌐: Health checks
+  * 📥: Incoming requests
+  * 🔎: Data parsing
+  * ⚡: Cache hits
+  * 📡: API calls
+  * ✅: Success operations
+  * ❌: Errors
+  * 🚀: Task start
+  * 🧠: AI processing
+  * ✨: Task completion
+  * 🛑: Stopping/Revoking
+
+LOG LOCATIONS:
+- Backend: Console output (via uvicorn)
+- Worker: Celery worker logs (separate terminal)
+- Frontend: Browser console (F12)
+
+DEBUGGING FEATURES:
+- Schema validators print on request/response
+- Task metadata tracking in memory
+- Redis connection status checks
+- API response status code validation
+- Error messages with context
+
+================================================================================
+10. GIT REPOSITORY
+================================================================================
+
+URL: https://github.com/safwanurrahman/NexusAI.git
+Remote: origin (fetch/push)
+Branch: main (active)
+Commits: 6 recorded
+
+COMMIT HISTORY:
+1. c1caeb1 - chore: setup docker architecture and git ignores
+2. 499ddd0 - Initialize README with project details and features
+3. 2ec8f83 - Initial commit: NexusAI research tool with manual local/cloud toggle
+4. 13f7ff1 - Fix: Update CORS to allow Netlify frontend
+5. cbe33d3 - Fix: Add celery and dependencies for Render
+6. c76e801 - Initial commit: NexusAI v1.0
+
+GITIGNORE:
+- node_modules/
+- __pycache__/
+- **.env (all .env files)
+- .DS_Store
+- dist/ (build output)
+- venv/ (.venv, virtual env)
+- *.log (log files)
+- .pytest_cache/
+- *.pyc, *.pyo, *.py[cod] (compiled Python)
+- .docker/
+- .git
+
+================================================================================
+11. CURRENT PROJECT STATUS
+================================================================================
+
+OPERATIONAL STATE: Development-ready with cloud deployment capability
+
+COMPLETENESS:
+✓ Core API endpoints functional
+✓ Background task processing (Celery + Redis)
+✓ Frontend UI with polling
+✓ Docker Compose setup for local dev
+✓ Cloud deployment ready (Railway + Netlify)
+✓ API integrations (Serper, Proxycurl, OpenAI)
+✓ Caching system
+✓ Task management (start/stop/check)
+
+KNOWN FEATURES:
+✓ Manual toggle for local/cloud mode
+✓ Country-based filtering
+✓ In-memory caching with TTL
+✓ Task revocation with SIGKILL
+✓ Error handling and fallbacks
+✓ Dark theme UI
+
+POTENTIAL IMPROVEMENT AREAS:
+- Persistent cache (currently in-memory only)
+- Database integration for history
+- More granular error codes
+- API rate limiting
+- Authentication/authorization
+- User accounts and history
+- Advanced search filters
+- Results export (PDF/CSV)
+- Analytics dashboard
+
+================================================================================
+12. RUNNING THE PROJECT
+================================================================================
+
+LOCAL SETUP:
+1. Install Docker & Docker Compose
+2. Create .env files:
+   backend/.env: PROXYCURL_API_KEY, OPENAI_API_KEY, SERPER_API_KEY
+   frontend/.env: VITE_BACKEND_URL=http://localhost:8000
+3. Run: docker-compose up --build
+4. Access:
+   - Frontend: http://localhost:8080
+   - Backend API: http://localhost:8000
+   - Health: http://localhost:8000/
+
+DEVELOPMENT WORKFLOW:
+- Backend changes: Auto-reload via --reload flag
+- Frontend changes: Vite hot module replacement
+- Worker changes: Manual restart (docker-compose restart worker)
+- Redis: Persists task queue
+
+NPM SCRIPTS (Frontend):
+- npm run dev: Start dev server
+- npm run build: Production build
+- npm run lint: ESLint check
+- npm run test: Run tests
+- npm run test:watch: Watch mode
+
+TROUBLESHOOTING:
+- Redis connection errors: Check REDIS_URL in config
+- API key errors: Verify .env files
+- CORS errors: Check BACKEND_CORS_ORIGINS in config
+- Task failures: Check worker logs for stack traces
+- Build issues: Clear node_modules and reinstall
+
+================================================================================
+13. KEY FILES SUMMARY
+================================================================================
+
+BACKEND KEY FILES:
+
+main.py (171 lines)
+- FastAPI app setup
+- CORS configuration
+- 4 endpoints: /, /research, /research/stop, /results
+- Cache management logic
+- Task metadata tracking
+- Comprehensive debug logging
+
+worker.py (124 lines)
+- Celery app configuration
+- conduct_research_task function
+- Pipeline: Search → Summarize → Return
+- Error handling with graceful fallbacks
+- Timing and progress logging
+
+models/schemas.py (61 lines)
+- Pydantic request/response models
+- ArticleSummary structure
+- Validation logic with logging
+
+services/linkedin_search.py (105 lines)
+- Serper API integration
+- LinkedIn search with site:linkedin.com filter
+- Country filtering (gl parameter)
+- Error handling
+
+services/openai_ext.py (72 lines)
+- OpenAI summarization logic
+- GPT-4o-mini integration
+- 2-sentence system prompt
+- Fallback on error
+
+services/proxycurl.py (58 lines)
+- LinkedIn profile data fetching
+- API key validation
+- Error handling
+
+core/config.py (40 lines)
+- Pydantic Settings management
+- Redis configuration
+- API key loading from .env
+- CORS origins management
+
+FRONTEND KEY FILES:
+
+App.tsx (42 lines)
+- React Router setup
+- Query Client provider
+- Dark theme styling
+- Page routing
+
+Index.tsx (154 lines)
+- Search interface
+- Form inputs (query, country)
+- Results display
+- Task polling logic
+- Loading states
+- Error messages
+
+vite.config.ts
+- Build configuration
+- React plugin setup
+
+tailwind.config.ts
+- Tailwind CSS customization
+
+package.json
+- Dependencies management
+- Build scripts
+
+================================================================================
+14. PROJECT SUMMARY
+================================================================================
+
+NexusAI is a well-architected full-stack application following modern best 
+practices:
+
+✓ Clean separation of concerns (Frontend/Backend/Services)
+✓ Async processing architecture (Celery + Redis)
+✓ Type-safe code (Pydantic, TypeScript)
+✓ Containerized deployment (Docker)
+✓ Manual local/cloud toggle for flexibility
+✓ Comprehensive logging and debugging
+✓ Error handling with fallbacks
+✓ Caching for performance
+✓ Task management capabilities
+✓ Ready for cloud deployment
+
+The codebase is well-documented with metaphorical comments (Waiter-Chef-Scout
+-Translator pattern) that explain the architecture in digestible terms. The 
+project uses industry-standard tools and libraries, making it maintainable 
+and extensible.
+
+================================================================================

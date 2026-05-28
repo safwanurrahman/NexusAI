@@ -5,6 +5,7 @@ import { KeywordHistory } from "@/components/KeywordHistory";
 import { useArticleSearch } from "@/hooks/useArticleSearch";
 import { Download, Cpu } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Article } from "@/types/article";
 
 const Index = () => {
   const { 
@@ -13,8 +14,10 @@ const Index = () => {
     error, 
     keywordHistory, 
     search, 
+    stopSearch,      // 🛑 ADDED: Destructured from hook
     statusMessage, 
-    clearHistory 
+    clearHistory,
+    exportToJson     // 📁 ADDED: Fixed JSON export function
   } = useArticleSearch();
 
   const [hasSearched, setHasSearched] = useState(false);
@@ -33,6 +36,7 @@ const Index = () => {
 
   const handleHistorySelect = (keyword: string) => {
     setHasSearched(true);
+    // 🌍 KEPT: Uses the active country selection for history items
     search(keyword, activeCountry);
   };
 
@@ -97,7 +101,12 @@ const Index = () => {
       </header>
 
       <main className={`container max-w-5xl transition-all duration-700 ${hasSearched ? 'py-2' : 'py-10'} space-y-12 pb-32`}>
-        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+        {/* 🛑 FIXED LINE 102: Added onStop prop */}
+        <SearchBar 
+          onSearch={handleSearch} 
+          onStop={stopSearch} 
+          isLoading={isLoading} 
+        />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-4">
           <KeywordHistory
@@ -105,15 +114,30 @@ const Index = () => {
             onSelect={handleHistorySelect}
             onClear={clearHistory}
           />
-          {articles.length > 0 && !isLoading && (
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-500 transition-all font-bold shadow-lg"
-            >
-              <Download className="h-4 w-4" />
-              Export Dataset
-            </button>
-          )}
+          
+          <div className="flex gap-3">
+            {articles.length > 0 && !isLoading && (
+              <>
+                {/* CSV Export Button */}
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-bold border border-white/10"
+                >
+                  <Download className="h-4 w-4" />
+                  CSV
+                </button>
+
+                {/* 📁 JSON Export Button (using the fixed function) */}
+                <button
+                  onClick={exportToJson}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-all font-bold shadow-lg"
+                >
+                  <Download className="h-4 w-4" />
+                  JSON
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <ArticleList

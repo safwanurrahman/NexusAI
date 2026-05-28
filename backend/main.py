@@ -1,4 +1,6 @@
 # backend/main.py
+#docker compose up --build -d
+
 import time
 from typing import Any, Dict
 
@@ -8,6 +10,7 @@ from celery.result import AsyncResult
 from backend.core.cors import setup_cors
 from backend.models.schemas import ResearchRequest, ResearchResponse
 from backend.worker import conduct_research_task
+from backend.worker import celery_app
 
 # --- MANUAL TOGGLE: APP TITLE ---
 # LOCAL MODE (Active)
@@ -38,7 +41,7 @@ def health_check() -> dict:
 async def start_research(request: ResearchRequest) -> ResearchResponse:
     """
     Entry point from the frontend.
-    1) Normalizes query + country.
+    1) Normalizes query + country + platform.
     2) Checks in‑memory cache.
     3) If cached → return success + data.
     4) Otherwise kicks off Celery worker and returns processing + task_id.
@@ -47,11 +50,12 @@ async def start_research(request: ResearchRequest) -> ResearchResponse:
 
     query = request.query.strip().lower()
     country = (request.country or "all").strip().lower()
+    platform = (request.platform or "both").strip().lower()
 
-    print(f"🔎 [DEBUG] Parsing Data: Query='{query}' | Country='{country}'")
+    print(f"🔎 [DEBUG] Parsing Data: Query='{query}' | Country='{country}' | Platform='{platform}'")
 
     now = time.time()
-    cache_key = f"{query}_{country}"
+    cache_key = f"{query}_{country}_{platform}"
 
     # 1. Cache check
     cached_entry = search_cache.get(cache_key)
@@ -67,7 +71,7 @@ async def start_research(request: ResearchRequest) -> ResearchResponse:
     # 2. Hand off to Celery worker
     print("📡 [DEBUG] CACHE MISS: Dispatching task to worker...")
     try:
-        task = conduct_research_task.delay(query, country)
+        task = conduct_research_task.delay(query, country, platform)
         task_metadata[task.id] = cache_key
         print(f"✅ [DEBUG] Ticket pinned! Task ID: {task.id}")
         return ResearchResponse(status="processing", task_id=task.id)
@@ -76,32 +80,67 @@ async def start_research(request: ResearchRequest) -> ResearchResponse:
         raise HTTPException(status_code=500, detail="Worker queue is unavailable") from e
 
 
+@app.post("/research/stop/{task_id}")
+async def stop_research(task_id: str):
+    """
+    Aborts an ongoing research task using its Task ID.
+    """
+    print(f"🛑 [DEBUG] Stop Request: Attempting to revoke Task {task_id}")
+    
+    try:
+        # 1. Revoke the task
+        # terminate=True: Kills the process even if it's currently running.
+        # signal='SIGKILL': The "hard" stop to ensure the worker drops everything.
+        celery_app.control.revoke(task_id, terminate=True, signal='SIGKILL')
+        
+        # 2. Cleanup local metadata
+        if task_id in task_metadata:
+            cache_key = task_metadata.pop(task_id, None)
+            print(f"🧹 [DEBUG] Cleaned up metadata for {cache_key}")
+
+        return {"status": "stopped", "message": f"Task {task_id} has been terminated."}
+    
+    except Exception as e:
+        print(f"❌ [ERROR] Failed to stop task: {e}")
+        raise HTTPException(status_code=500, detail="Could not stop the task")
+    
 @app.get("/results/{task_id}", response_model=ResearchResponse)
 async def get_results(task_id: str) -> ResearchResponse:
     """
     Polled by the frontend.
-    1) Looks up Celery AsyncResult.
-    2) If failed → status=error.
-    3) If ready → store in cache (if we know the cache_key) and return success + data.
-    4) Otherwise → status=pending.
+    1) Checks if the task was Revoked (Stopped).
+    2) Checks if the task Failed.
+    3) If Ready -> Stores in cache and returns data.
+    4) Otherwise -> Returns pending.
     """
     print(f"🔍 [DEBUG] GET /results/{task_id}: Checking task status...")
     task_result = AsyncResult(task_id)
 
-    # If the task backend doesn't know this ID at all, treat as error
+    # 1. Handle missing task
     if task_result is None:
         print(f"🚨 [DEBUG] Task {task_id} not found in backend.")
         return ResearchResponse(status="error", message="Task not found", task_id=task_id)
 
+    # 2. Check if the task is finished (Ready covers Success, Failure, and Revoked)
     if task_result.ready():
+        
+        # 🛑 NEW: Catch the "Kill Switch" aftermath
+        if task_result.state == 'REVOKED':
+            print(f"🛑 [DEBUG] Task {task_id} was revoked by user. Cleaning up.")
+            task_metadata.pop(task_id, None) # Remove ticket from memory
+            return ResearchResponse(status="error", message="Search stopped by user", task_id=task_id)
+
+        # 🚨 Handle internal worker errors
         if task_result.failed():
             print(f"🚨 [DEBUG] Worker reported a failure for Task {task_id}.")
+            task_metadata.pop(task_id, None) # Cleanup on failure too
             return ResearchResponse(status="error", message="Worker task failed", task_id=task_id)
 
+        # 🎉 Handle Success
         data = task_result.result or []
         print(f"🎉 [DEBUG] Success! Task {task_id} is finished. Delivering data.")
 
-        # Persist in cache keyed by original query+country if we have it
+        # Persist in cache and cleanup metadata
         cache_key = task_metadata.pop(task_id, None)
         if cache_key:
             search_cache[cache_key] = {
@@ -112,6 +151,7 @@ async def get_results(task_id: str) -> ResearchResponse:
 
         return ResearchResponse(status="success", data=data, task_id=task_id)
 
+    # ⏳ Task is still in progress
     print(f"⏳ [DEBUG] Task {task_id} is still pending.")
     return ResearchResponse(status="pending", task_id=task_id)
 
@@ -129,37 +169,3 @@ async def get_results(task_id: str) -> ResearchResponse:
 #
 # * THE FOLLOW-UP: GET /results checks the kitchen progress.
 # =================================================================
-
-# =================================================================
-# 📖 THE STORY OF THIS FILE (THE FRONT DESK)
-# =================================================================
-# * THE WAITER’S ARRIVAL: Imagine a busy restaurant. main.py is the 
-#   Waiter standing at the front desk. He waits for customers 
-#   (the User's Frontend) to walk in with an order.
-#
-# * THE ID CHECK (CORS): Before taking an order, the Waiter checks 
-#   if the customer is from a trusted neighborhood (Netlify or 
-#   Localhost). If they aren't, he doesn't let them in.
-#
-# * THE QUICK SEARCH (CACHE): If someone asks for a research query, 
-#   the Waiter first checks his "Already Prepared" cabinet (the Cache). 
-#   If the exact same dish was made an hour ago, he just hands it over 
-#   instantly.
-#
-# * SENDING TO THE KITCHEN: If it's a new order, the Waiter writes a 
-#   ticket and pins it to the kitchen wheel (Celery Task). He then 
-#   hands the customer a "Beeper" (the Task ID) and says, "Relax, 
-#   we'll buzz you when it's ready."
-#
-# * THE FOLLOW-UP: Every few seconds, the customer holding the beeper 
-#   asks, "Is it done yet?" (GET /results). The Waiter checks the 
-#   kitchen and either gives them the "Plate" (Data) or tells them 
-#   to keep waiting.
-# =================================================================
-
-# 🛡️ WHY WE IMPORT HEADERS HERE?
-# In main.py, we define 'allow_headers' in the CORS middleware. 
-# Think of these as the "Acceptable Handshakes." We are telling the 
-# user's browser: "It's okay for the frontend to send us special 
-# information like 'Content-Type' or 'Authorization' in their 
-# request headers. We won't block them for it."

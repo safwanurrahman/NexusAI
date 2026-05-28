@@ -1,35 +1,40 @@
 import type { Article } from "@/types/article";
 import { ArticleCard } from "./ArticleCard";
-import { FileSearch, Sparkles } from "lucide-react";
+import { FileSearch, Sparkles, Linkedin, Twitter } from "lucide-react";
 
 interface ArticleListProps {
   articles: Article[];
   isLoading: boolean;
   error: string | null;
   hasSearched: boolean;
-  statusMessage?: string; // New prop for progress updates
+  statusMessage?: string;
 }
 
-function SkeletonCard() {
+function SkeletonCard({ platform }: { platform: "linkedin" | "twitter" }) {
+  const bgColor = platform === "linkedin" ? "bg-blue-900/10" : "bg-sky-900/10";
+  const borderColor = platform === "linkedin" ? "border-blue-500/20" : "border-sky-500/20";
+  
   return (
-    <div className="bg-card rounded-2xl border border-border p-6 animate-pulse">
+    <div className={`${bgColor} rounded-2xl border ${borderColor} p-6 animate-pulse`}>
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1 space-y-2">
-          <div className="h-5 bg-muted rounded w-3/4" />
-          <div className="h-5 bg-muted rounded w-1/2" />
+          <div className="h-5 bg-slate-700 rounded w-3/4" />
+          <div className="h-5 bg-slate-700 rounded w-1/2" />
         </div>
-        <div className="h-8 w-8 bg-muted rounded-lg shrink-0" />
+        <div className="h-8 w-8 bg-slate-700 rounded-lg shrink-0" />
       </div>
       <div className="space-y-2 mb-5">
-        <div className="h-4 bg-muted rounded w-full" />
-        <div className="h-4 bg-muted rounded w-5/6" />
-        <div className="h-4 bg-muted rounded w-2/3" />
+        <div className="h-4 bg-slate-700 rounded w-full" />
+        <div className="h-4 bg-slate-700 rounded w-5/6" />
+        <div className="h-4 bg-slate-700 rounded w-2/3" />
       </div>
-      <div className="h-7 bg-muted rounded-full w-32" />
+      <div className="space-y-2">
+        <div className="h-7 bg-slate-700 rounded-full w-32" />
+        <div className="h-10 bg-slate-700 rounded-lg w-full" />
+      </div>
     </div>
   );
 }
-
 export function ArticleList({ 
   articles, 
   isLoading, 
@@ -37,6 +42,9 @@ export function ArticleList({
   hasSearched, 
   statusMessage 
 }: ArticleListProps) {
+  
+  const linkedInArticles = articles.filter(a => a.platform === "linkedin");
+  const twitterArticles = articles.filter(a => a.platform === "twitter");
   
   if (isLoading) {
     return (
@@ -54,16 +62,38 @@ export function ArticleList({
               {statusMessage || "Researching..."}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Analyzing LinkedIn signals and generating AI summaries
+              Searching LinkedIn & Twitter/X in parallel and generating AI summaries
             </p>
           </div>
         </div>
 
-        {/* Skeleton Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
+        {/* Dual Skeleton Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-4 py-2">
+              <Linkedin className="h-5 w-5 text-blue-400" />
+              <h3 className="font-semibold text-slate-100">LinkedIn</h3>
+              <span className="text-sm text-slate-400">Loading...</span>
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={`linkedin-skeleton-${i}`} platform="linkedin" />
+              ))}
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-4 py-2">
+              <Twitter className="h-5 w-5 text-sky-400" />
+              <h3 className="font-semibold text-slate-100">Twitter/X</h3>
+              <span className="text-sm text-slate-400">Loading...</span>
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={`twitter-skeleton-${i}`} platform="twitter" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -96,16 +126,71 @@ export function ArticleList({
   if (!hasSearched) return null;
 
   return (
-    <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-700">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground font-medium">
-          Top {articles.length} insights — AI-curated & summarized
-        </p>
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-700">
+      {/* Two-Column Layout */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* LinkedIn Column */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 rounded-xl border border-blue-500/20">
+            <div className="flex items-center gap-2">
+              <Linkedin className="h-5 w-5 text-blue-400" />
+              <h3 className="font-semibold text-slate-100">LinkedIn</h3>
+            </div>
+            <span className="text-sm font-medium text-blue-300 bg-blue-900/40 px-3 py-1 rounded-full">
+              {linkedInArticles.length} results
+            </span>
+          </div>
+          
+          {linkedInArticles.length > 0 ? (
+            <div className="space-y-4">
+              {linkedInArticles.map((article, i) => (
+                <ArticleCard 
+                  key={`${article.url}-${i}`} 
+                  article={article} 
+                  index={i} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 px-4 bg-blue-900/10 rounded-xl border border-blue-500/10">
+              <p className="text-slate-400 text-sm">No LinkedIn results found</p>
+            </div>
+          )}
+        </div>
+
+        {/* Twitter Column */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-4 py-3 bg-sky-900/20 rounded-xl border border-sky-500/20">
+            <div className="flex items-center gap-2">
+              <Twitter className="h-5 w-5 text-sky-400" />
+              <h3 className="font-semibold text-slate-100">Twitter/X</h3>
+            </div>
+            <span className="text-sm font-medium text-sky-300 bg-sky-900/40 px-3 py-1 rounded-full">
+              {twitterArticles.length} results
+            </span>
+          </div>
+          
+          {twitterArticles.length > 0 ? (
+            <div className="space-y-4">
+              {twitterArticles.map((article, i) => (
+                <ArticleCard 
+                  key={`${article.url}-${i}`} 
+                  article={article} 
+                  index={i} 
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 px-4 bg-sky-900/10 rounded-xl border border-sky-500/10">
+              <p className="text-slate-400 text-sm">No Twitter results found</p>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {articles.map((article, i) => (
-          <ArticleCard key={`${article.url}-${i}`} article={article} index={i} />
-        ))}
+
+      {/* Summary Footer */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground font-medium pt-4 border-t border-border">
+        <p>Total {articles.length} insights — AI-curated & summarized</p>
       </div>
     </div>
   );

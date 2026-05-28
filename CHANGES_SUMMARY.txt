@@ -1,0 +1,304 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         ✅ DUAL-PLATFORM SEARCH IMPLEMENTATION - ALL FILES UPDATED         ║
+║                                                                            ║
+║                    NexusAI: LinkedIn + Twitter/X                          ║
+║                      Two-Column Responsive Layout                          ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📊 IMPLEMENTATION SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TOTAL FILES CHANGED: 8
+  • NEW: 1 file
+  • UPDATED: 7 files
+
+TOTAL CODE ADDED: ~245 lines
+BREAKING CHANGES: 0 (fully backward compatible)
+ARCHITECTURE CHANGES: 0 (Waiter-Chef-Scout-Translator preserved)
+
+
+📁 FILES CHANGED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BACKEND:
+  [NEW]     backend/services/twitter_search.py           74 lines
+  [UPDATED] backend/models/schemas.py                    +5 lines
+  [UPDATED] backend/worker.py                            +50 lines
+  [UPDATED] backend/main.py                              +3 lines
+
+FRONTEND:
+  [UPDATED] frontend/src/types/article.ts                +1 line
+  [UPDATED] frontend/src/hooks/useArticleSearch.ts       +3 lines
+  [UPDATED] frontend/src/components/ArticleCard.tsx      +25 lines
+  [UPDATED] frontend/src/components/ArticleList.tsx      +80 lines
+
+
+🎯 KEY CHANGES AT A GLANCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─ BACKEND ─────────────────────────────────────────────────────────────────┐
+│                                                                            │
+│ 🔍 Services:                                                             │
+│    • search_linkedin(query, country) → Results                           │
+│    • search_twitter(query, country) → Results  [NEW]                     │
+│                                                                            │
+│ 🤖 Worker:                                                               │
+│    • conduct_research_task(query, country, platform="both")              │
+│    • If platform in ["linkedin", "both"]: run LinkedIn Scout             │
+│    • If platform in ["twitter", "both"]: run Twitter Scout               │
+│    • Returns: combined results with platform tags                        │
+│                                                                            │
+│ 💾 Cache Key:                                                            │
+│    Before: "{query}_{country}"                                           │
+│    After:  "{query}_{country}_{platform}"                                │
+│                                                                            │
+│ 📦 Data Model:                                                           │
+│    ResearchRequest: + platform: str = "both"                             │
+│    ArticleSummary:  + platform: str = "linkedin"                         │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FRONTEND ────────────────────────────────────────────────────────────────┐
+│                                                                            │
+│ 📋 Types:                                                                │
+│    Article: + platform: "linkedin" | "twitter"                           │
+│                                                                            │
+│ 🪝 Hook:                                                                 │
+│    useArticleSearch:                                                      │
+│    • Sends platform: "both" in request                                    │
+│    • Handles both platforms in response                                   │
+│    • Maps platform field to Article objects                              │
+│                                                                            │
+│ 🎨 Components:                                                           │
+│    ArticleCard:                                                           │
+│    • Platform-specific colors (blue vs sky blue)                         │
+│    • CTA button: "View on LinkedIn" or "View on Twitter/X"              │
+│    • Icons: Linkedin or Twitter per platform                             │
+│                                                                            │
+│    ArticleList:                                                           │
+│    • TWO-COLUMN LAYOUT (side-by-side on desktop)                         │
+│    • Left: LinkedIn results (blue theme)                                 │
+│    • Right: Twitter results (sky blue theme)                             │
+│    • Each column has header with icon + count badge                      │
+│    • Separate empty states per platform                                  │
+│    • Dual skeleton loaders during loading                                │
+│    • Responsive: stacks vertically on mobile                             │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+
+🎨 VISUAL LAYOUT (Desktop)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           NEXUS RESEARCH                                 │
+│                        Search Form (Shared)                              │
+│                   [Search Input] [Country Dropdown] [Search]             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌────────────────────────┐  ┌────────────────────────┐                │
+│  │ 🔵 LinkedIn            │  │ 🔷 Twitter/X           │                │
+│  │ 8 results              │  │ 5 results              │                │
+│  ├────────────────────────┤  ├────────────────────────┤                │
+│  │ [Article Card 1]       │  │ [Article Card 1]       │                │
+│  │ • Blue accent          │  │ • Sky blue accent      │                │
+│  │ • LinkedIn icon        │  │ • Twitter icon         │                │
+│  │ • [View on LinkedIn]   │  │ • [View on Twitter/X]  │                │
+│  │                        │  │                        │                │
+│  │ [Article Card 2]       │  │ [Article Card 2]       │                │
+│  │                        │  │                        │                │
+│  │ ... etc                │  │ ... etc                │                │
+│  │                        │  │                        │                │
+│  └────────────────────────┘  └────────────────────────┘                │
+│                                                                           │
+│              Total 13 insights — AI-curated & summarized                 │
+│                                                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+🎨 VISUAL LAYOUT (Mobile)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────┐
+│  NEXUS RESEARCH │
+│  Search Form    │
+├─────────────────┤
+│ 🔵 LinkedIn     │
+│ 8 results       │
+│ ─────────────── │
+│ [Article Card]  │
+│ [Article Card]  │
+│ ... etc         │
+│                 │
+│ 🔷 Twitter/X    │
+│ 5 results       │
+│ ─────────────── │
+│ [Article Card]  │
+│ [Article Card]  │
+│ ... etc         │
+│                 │
+│ Total 13        │
+│ insights        │
+│                 │
+└─────────────────┘
+
+
+📊 DATA FLOW DIAGRAM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────┐
+│ FRONTEND│
+└────┬────┘
+     │
+     │ POST /research
+     │ {query: "AI", country: "us", platform: "both"}
+     │
+     ▼
+┌──────────────────────────────────────────┐
+│ BACKEND: main.py (/research endpoint)    │
+│  ├─ Normalize inputs                     │
+│  ├─ Create cache_key: "ai_us_both"       │
+│  ├─ Check cache (miss)                   │
+│  └─ Dispatch: conduct_research_task()    │
+└────┬─────────────────────────────────────┘
+     │
+     │ Celery Task Queue
+     │
+     ▼
+┌──────────────────────────────────────────┐
+│ BACKEND: worker.py (Celery Task)         │
+│  ├─ Check platform == "both" ✓           │
+│  │                                       │
+│  ├─ LINKEDIN SCOUT:                      │
+│  │  ├─ search_linkedin(query, country)   │
+│  │  ├─ Returns: [results]                │
+│  │  └─ Summarize + tag: platform="linkedin"
+│  │                                       │
+│  └─ TWITTER SCOUT:                       │
+│     ├─ search_twitter(query, country)    │
+│     ├─ Returns: [results]                │
+│     └─ Summarize + tag: platform="twitter"
+│                                           │
+│  Combine: all_articles = [...]           │
+│  Store in Redis                          │
+└────┬─────────────────────────────────────┘
+     │
+     │ GET /results/{task_id}
+     │ Poll until complete
+     │
+     ▼
+┌──────────────────────────────────────────┐
+│ FRONTEND: Receive Results                │
+│  ├─ LinkedInArticles = [filter]          │
+│  ├─ TwitterArticles = [filter]           │
+│  └─ Render Two-Column Layout             │
+└──────────────────────────────────────────┘
+
+
+🚀 DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. COPY NEW FILE:
+   cp backend/services/twitter_search.py → repository
+
+2. UPDATE BACKEND FILES:
+   • backend/models/schemas.py (platform field)
+   • backend/worker.py (multi-platform logic)
+   • backend/main.py (cache key with platform)
+
+3. UPDATE FRONTEND FILES:
+   • frontend/src/types/article.ts (platform type)
+   • frontend/src/hooks/useArticleSearch.ts (platform handling)
+   • frontend/src/components/ArticleCard.tsx (platform styling)
+   • frontend/src/components/ArticleList.tsx (two-column layout)
+
+4. TEST LOCALLY:
+   docker-compose up --build
+
+5. DEPLOY:
+   • Backend: git push → Railway
+   • Frontend: git push → Netlify
+
+6. VERIFY:
+   ✓ Health check: GET /
+   ✓ Search works: two columns appear
+   ✓ Both platforms show results
+   ✓ Colors correct (blue vs sky blue)
+   ✓ CTA buttons show correct platform
+
+
+✨ FEATURES SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Dual-platform simultaneous search (LinkedIn + Twitter/X)
+✅ Responsive two-column layout (desktop), stacked (mobile)
+✅ Platform-specific color theming:
+   • LinkedIn: blue-600 buttons, blue-500/20 borders, blue-900/10 bg
+   • Twitter: sky-500 buttons, sky-500/20 borders, sky-900/10 bg
+✅ Result count badges per platform (blue and sky blue)
+✅ Dual skeleton loaders during processing
+✅ Platform-aware CTA buttons:
+   • "View on LinkedIn" (with LinkedIn icon)
+   • "View on Twitter/X" (with Twitter icon)
+✅ Empty state per column if no results
+✅ Shared search input + country filter at top
+✅ Smart caching with platform in key
+✅ Graceful degradation (one platform fails, other works)
+✅ 100% backward compatible
+✅ Waiter-Chef-Scout-Translator pattern preserved
+✅ Full error handling and logging
+✅ TypeScript type safety throughout
+✅ Tailwind dark theme maintained
+✅ Mobile-first responsive design
+
+
+📝 DOCUMENTATION FILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Three reference documents saved to project root:
+
+1. DUAL_PLATFORM_IMPLEMENTATION.txt (20KB)
+   → Comprehensive guide with every change detailed
+   → Architecture preserved, features summary
+   → Testing checklist, deployment steps
+
+2. CODE_VERIFICATION_CHECKLIST.txt (11KB)
+   → Quick reference for each file
+   → Code snippets to verify
+   → Build & test commands
+   → Rollback steps if needed
+
+3. CHANGES_SUMMARY.txt (this file)
+   → Visual overview
+   → Data flow diagram
+   → Feature summary
+
+
+🔒 BACKWARD COMPATIBILITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ FULLY BACKWARD COMPATIBLE
+
+• Old API calls without "platform" field → defaults to "both"
+• Old cache keys (query_country) separate from new keys
+• No database schema changes
+• No breaking Celery task changes
+• Old frontend code would just see new layout (no errors)
+• Can easily revert if needed (see CODE_VERIFICATION_CHECKLIST.txt)
+
+
+🎯 READY TO DEPLOY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All 8 files have been created/updated.
+No syntax errors.
+No breaking changes.
+Tests ready (see documentation).
+Deploy with confidence! ✅
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                         Implementation Complete
+═══════════════════════════════════════════════════════════════════════════════

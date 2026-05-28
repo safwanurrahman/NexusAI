@@ -4,10 +4,11 @@ from typing import List, Optional
 class ResearchRequest(BaseModel):
     query: str
     country: Optional[str] = "all"  # Added to support Bangladesh/Global filtering
+    platform: str = "both"  # "linkedin", "twitter", or "both"
 
     @model_validator(mode='after')
     def log_inbound(self):
-        print(f"📋 [SCHEMA DEBUG] Validating Inbound Request: Query='{self.query}', Country='{self.country}'")
+        print(f"📋 [SCHEMA DEBUG] Validating Inbound Request: Query='{self.query}', Country='{self.country}', Platform='{self.platform}'")
         return self
 
 class ArticleSummary(BaseModel):
@@ -15,12 +16,13 @@ class ArticleSummary(BaseModel):
     link: Optional[str] = ""
     author: Optional[str] = "Unknown"
     summary: str
+    platform: str = "linkedin"  # Identifies source: "linkedin" or "twitter"
 
     @model_validator(mode='after')
     def log_article(self):
         # We only print the first 30 chars of the summary to keep the console clean
         short_sum = (self.summary[:30] + '...') if self.summary else "Empty"
-        print(f"📝 [SCHEMA DEBUG] Structured Article: '{self.title}' | Summary: {short_sum}")
+        print(f"📝 [SCHEMA DEBUG] Structured Article: '{self.title}' | Platform: {self.platform} | Summary: {short_sum}")
         return self
 
 class ResearchResponse(BaseModel):
@@ -28,6 +30,7 @@ class ResearchResponse(BaseModel):
     # 'data' is Optional because it's empty while status is "processing"
     data: Optional[List[ArticleSummary]] = None 
     task_id: Optional[str] = None
+    message: Optional[str] = None  # Carries error/info messages back to the frontend
 
     @model_validator(mode='after')
     def log_outbound(self):

@@ -1,0 +1,321 @@
+================================================================================
+                         CODE VERIFICATION GUIDE
+                    All Changes Made - Ready to Deploy
+================================================================================
+
+VERIFY THESE CODE SNIPPETS ARE IN PLACE:
+
+================================================================================
+1. backend/services/twitter_search.py [NEW FILE]
+================================================================================
+
+File should contain:
+✓ Function: search_twitter(query: str, country: str = "all")
+✓ Search query: "(site:twitter.com OR site:x.com) {query}"
+✓ Returns: List of dicts with title, link, snippet, author
+✓ Error handling for missing API key
+✓ Country filtering with gl parameter
+✓ Comprehensive logging with print statements
+
+Quick check:
+  grep -n "def search_twitter" backend/services/twitter_search.py
+  grep -n "site:twitter.com OR site:x.com" backend/services/twitter_search.py
+
+================================================================================
+2. backend/models/schemas.py [UPDATED]
+================================================================================
+
+ResearchRequest should have:
+  class ResearchRequest(BaseModel):
+      query: str
+      country: Optional[str] = "all"
+      platform: str = "both"  ← NEW
+
+ArticleSummary should have:
+  class ArticleSummary(BaseModel):
+      title: Optional[str] = "Untitled Article"
+      link: Optional[str] = ""
+      author: Optional[str] = "Unknown"
+      summary: str
+      platform: str = "linkedin"  ← NEW
+
+Quick check:
+  grep -A 5 "class ResearchRequest" backend/models/schemas.py
+  grep -A 6 "class ArticleSummary" backend/models/schemas.py
+  grep "platform: str" backend/models/schemas.py | wc -l
+  # Should show 2 (one for ResearchRequest, one for ArticleSummary)
+
+================================================================================
+3. backend/worker.py [UPDATED]
+================================================================================
+
+Imports should include:
+  from backend.services.twitter_search import search_twitter
+
+Function signature should be:
+  @celery_app.task(name="conduct_research_task")
+  def conduct_research_task(query: str, country: str = "all", platform: str = "both"):
+
+Should have conditional logic:
+  if platform in ["linkedin", "both"]:
+      linkedin_results = search_linkedin(query, country=country)
+      # ... summarize with platform: "linkedin" tag
+
+  if platform in ["twitter", "both"]:
+      twitter_results = search_twitter(query, country=country)
+      # ... summarize with platform: "twitter" tag
+
+Quick check:
+  grep -n "search_twitter" backend/worker.py
+  grep -n "platform:" backend/worker.py | head -5
+  grep -n "linkedin_results\|twitter_results" backend/worker.py
+
+================================================================================
+4. backend/main.py [UPDATED]
+================================================================================
+
+POST /research endpoint should have:
+  cache_key = f"{query}_{country}_{platform}"  ← Platform added!
+  
+  task = conduct_research_task.delay(query, country, platform)  ← 3rd param!
+
+Quick check:
+  grep -n "cache_key = " backend/main.py
+  # Should show: f"{query}_{country}_{platform}"
+  
+  grep -n "conduct_research_task.delay" backend/main.py
+  # Should show: 3 parameters (query, country, platform)
+
+================================================================================
+5. frontend/src/types/article.ts [UPDATED]
+================================================================================
+
+Article interface should have:
+  export interface Article {
+    title: string;
+    summary: string;
+    author: string;
+    url: string;
+    platform: "linkedin" | "twitter";  ← NEW with union type
+  }
+
+Quick check:
+  grep -A 6 "export interface Article" frontend/src/types/article.ts
+  grep "platform:" frontend/src/types/article.ts
+
+================================================================================
+6. frontend/src/hooks/useArticleSearch.ts [UPDATED]
+================================================================================
+
+BackendArticle interface should have:
+  interface BackendArticle {
+    title: string;
+    link: string;
+    author: string;
+    summary: string;
+    platform: "linkedin" | "twitter";  ← NEW
+  }
+
+Search function should send:
+  body: JSON.stringify({ query: keyword.trim(), country: country, platform: "both" }),
+
+Status message should mention both platforms:
+  "Searching LinkedIn & Twitter..."
+
+Quick check:
+  grep -n "platform: \"both\"" frontend/src/hooks/useArticleSearch.ts
+  grep -n "Searching LinkedIn & Twitter" frontend/src/hooks/useArticleSearch.ts
+  grep -A 4 "interface BackendArticle" frontend/src/hooks/useArticleSearch.ts
+
+================================================================================
+7. frontend/src/components/ArticleCard.tsx [UPDATED]
+================================================================================
+
+Should import icons:
+  import { ExternalLink, User, Linkedin, Twitter } from "lucide-react";
+
+Should have platform detection:
+  const isLinkedIn = article.platform === "linkedin"
+
+Should have conditional styling:
+  const platformColor = isLinkedIn 
+    ? "hover:shadow-[0_0_20px_rgba(0,119,181,0.3)]" 
+    : "hover:shadow-[0_0_20px_rgba(29,155,240,0.3)]"
+
+Should have CTA button:
+  <a href={article.url} ... className={`bg-blue-600 ... ${isLinkedIn ? ... : ...}`}>
+    {isLinkedIn ? (
+      <>
+        <Linkedin className="h-4 w-4" />
+        View on LinkedIn
+      </>
+    ) : (
+      <>
+        <Twitter className="h-4 w-4" />
+        View on Twitter/X
+      </>
+    )}
+  </a>
+
+Quick check:
+  grep -n "Linkedin\|Twitter" frontend/src/components/ArticleCard.tsx | wc -l
+  # Should show multiple imports and uses
+  
+  grep -n "View on LinkedIn\|View on Twitter/X" frontend/src/components/ArticleCard.tsx
+
+================================================================================
+8. frontend/src/components/ArticleList.tsx [UPDATED - MAJOR]
+================================================================================
+
+Should separate articles by platform:
+  const linkedInArticles = articles.filter(a => a.platform === "linkedin");
+  const twitterArticles = articles.filter(a => a.platform === "twitter");
+
+Should have two-column layout:
+  <div className="grid gap-6 lg:grid-cols-2">
+    {/* LinkedIn Column */}
+    {/* Twitter Column */}
+  </div>
+
+Should have dual skeleton loaders:
+  <SkeletonCard platform="linkedin" />
+  <SkeletonCard platform="twitter" />
+
+Should show result counts:
+  <span className="text-sm font-medium text-blue-300 bg-blue-900/40 px-3 py-1 rounded-full">
+    {linkedInArticles.length} results
+  </span>
+
+Should show empty states per platform:
+  {linkedInArticles.length > 0 ? (
+    ...
+  ) : (
+    <div className="text-center py-8 px-4 bg-blue-900/10 rounded-xl border border-blue-500/10">
+      <p className="text-slate-400 text-sm">No LinkedIn results found</p>
+    </div>
+  )}
+
+Quick check:
+  grep -n "linkedInArticles\|twitterArticles" frontend/src/components/ArticleList.tsx
+  grep -n "lg:grid-cols-2" frontend/src/components/ArticleList.tsx
+  grep -n "LinkedIn\|Twitter/X" frontend/src/components/ArticleList.tsx | wc -l
+  # Should show many references
+
+================================================================================
+                         BUILD & TEST COMMANDS
+================================================================================
+
+LOCAL TESTING:
+
+1. Backend syntax check:
+   cd backend && python -m py_compile main.py worker.py
+   cd backend/models && python -m py_compile schemas.py
+   cd backend/services && python -m py_compile twitter_search.py
+
+2. Frontend type check:
+   cd frontend && npm run build  (or tsc --noEmit)
+
+3. Docker build:
+   docker-compose up --build
+
+4. Verify services start:
+   - Redis: redis-cli ping → PONG
+   - Backend: curl http://localhost:8000/
+   - Frontend: http://localhost:8080
+
+5. Test search endpoint:
+   curl -X POST http://localhost:8000/research \
+     -H "Content-Type: application/json" \
+     -d '{"query":"python","country":"us","platform":"both"}'
+
+================================================================================
+                         DEPLOYMENT VERIFICATION
+================================================================================
+
+After deployment:
+
+1. Health checks:
+   ✓ GET http://api-domain.com/ → {"status": "online", ...}
+   ✓ Frontend loads without console errors
+   ✓ Search form appears with input + dropdown
+
+2. Search functionality:
+   ✓ Search with platform="both"
+   ✓ See both LinkedIn and Twitter results
+   ✓ Two-column layout displays correctly
+   ✓ Result counts show correctly
+   ✓ Platform icons visible (LinkedIn + Twitter)
+
+3. UI checks:
+   ✓ LinkedIn column has blue theme
+   ✓ Twitter column has sky blue theme
+   ✓ Each card has "View on LinkedIn" or "View on Twitter/X" button
+   ✓ Empty states appear when no results for platform
+
+4. Backend checks:
+   ✓ Railway logs show both search_linkedin and search_twitter calls
+   ✓ Celery task completes without errors
+   ✓ Platform field in cache key visible in logs
+   ✓ Results tagged with platform="linkedin" or "twitter"
+
+5. Cache verification:
+   ✓ First search: new task dispatched
+   ✓ Repeat same search: cached result returned instantly
+   ✓ Different platform: new task (different cache key)
+
+================================================================================
+                         ROLLBACK STEPS (if needed)
+================================================================================
+
+To revert to single-platform:
+
+1. Remove twitter_search.py:
+   rm backend/services/twitter_search.py
+
+2. Revert worker.py:
+   git checkout backend/worker.py
+
+3. Revert main.py:
+   git checkout backend/main.py
+
+4. Revert schemas.py:
+   git checkout backend/models/schemas.py
+
+5. Revert all frontend files:
+   git checkout frontend/src/types/article.ts
+   git checkout frontend/src/hooks/useArticleSearch.ts
+   git checkout frontend/src/components/ArticleCard.tsx
+   git checkout frontend/src/components/ArticleList.tsx
+
+6. Rebuild and redeploy
+
+Note: Cache keys from "both" platform won't be used in single-platform mode
+      and will naturally expire. No data loss.
+
+================================================================================
+                         QUICK CHECKLIST
+================================================================================
+
+Before going live:
+
+[ ] All 8 files modified/created
+[ ] No syntax errors in Python
+[ ] No TypeScript errors in frontend
+[ ] docker-compose builds successfully
+[ ] Both services (Redis, Backend, Frontend) start
+[ ] Health check endpoint works
+[ ] Search endpoint accepts platform parameter
+[ ] Two-column layout renders on desktop
+[ ] Responsive layout works on mobile
+[ ] Both LinkedIn and Twitter results appear
+[ ] Platform-specific colors visible
+[ ] CTA buttons show correct platform text
+[ ] Caching works with new key format
+[ ] Error handling works for both platforms
+[ ] Logs show dual-platform processing
+[ ] No console errors in browser
+[ ] No errors in Railway logs
+
+Deploy with confidence! ✅
+
+================================================================================

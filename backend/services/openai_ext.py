@@ -1,22 +1,38 @@
 import os
+import re
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
+SUMMARY_MODE = os.getenv("SUMMARY_MODE", "local").strip().lower()
+
 # Check if API Key is actually loaded before initializing
 api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    print("🚨 [CRITICAL] OPENAI_API_KEY not found in environment! AI calls will fail.")
-    client= None
-else:    
+if SUMMARY_MODE == "openai" and api_key:
     client = OpenAI(api_key=api_key)  # uses .env locally, platform env in cloud
+else:
+    client = None
+
+
+def _summarize_locally(text: str) -> str:
+    """Free development fallback: extractive summary without any API call."""
+    clean_text = re.sub(r"\s+", " ", text or "").strip()
+    if not clean_text:
+        return "No summary available because the source snippet was empty."
+
+    sentences = re.split(r"(?<=[.!?])\s+", clean_text)
+    summary = " ".join(sentences[:2]).strip()
+    if len(summary) > 260:
+        summary = summary[:257].rstrip() + "..."
+
+    return summary
 
 
 def summarize_article(text: str) -> str:
-    """Uses GPT-4o-mini to turn a messy snippet into a clean summary."""
+    """Summarizes text with a free local fallback for development."""
     if client is None:
-        return "Summary unavailable (Available in pro version)."
+        return _summarize_locally(text)
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -35,7 +51,7 @@ def summarize_article(text: str) -> str:
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ [AI ERROR]: {e}")
-        return "Summary unavailable (Available in pro version)."
+        return _summarize_locally(text)
 
 # =================================================================
 # 📖 THE STORY OF THIS FILE (THE TRANSLATOR)

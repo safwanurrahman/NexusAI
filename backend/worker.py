@@ -2,6 +2,7 @@ import os
 import time
 from celery import Celery
 from backend.services.linkedin_search import search_linkedin
+from backend.services.twitter_search import search_twitter
 from backend.services.openai_ext import summarize_article
 from dotenv import load_dotenv
 from backend.core.config import get_settings
@@ -27,63 +28,100 @@ celery_app.conf.update(
 )
 
 @celery_app.task(name="conduct_research_task")
-def conduct_research_task(query: str, country: str = "all"):
+def conduct_research_task(query: str, country: str = "all", platform: str = "both"):
     """
-    Background task logic. Monitor your Railway/Worker logs to see these prints.
+    Background task logic. Supports single or dual-platform research.
+    Monitor your Railway/Worker logs to see these prints.
+    
+    Platform options: "linkedin", "twitter", or "both"
     """
-    print(f"\n🚀 [WORKER START] Processing Query: '{query}' | Region: '{country}'")
+    print(f"\n🚀 [WORKER START] Processing Query: '{query}' | Region: '{country}' | Platform: '{platform}'")
     start_time = time.time()
     
-    # 1. Fetch from Serper (LinkedIn Search)
-    try:
-        print(f"📡 [DEBUG] Calling search_linkedin for: {query}...")
-        search_results = search_linkedin(query, country=country)
-        
-        count = len(search_results) if search_results else 0
-        print(f"📥 [DEBUG] Search completed. Found {count} raw results.")
-        
-    except Exception as e:
-        print(f"❌ [SEARCH ERROR] Critical failure in LinkedIn Search: {e}")
-        return []
+    all_articles = []
     
-    if not search_results:
-        print(f"⚠️ [WORKER WARNING] No results found. Ending task early.")
-        return []
-
-    # 2. Summarize each with OpenAI
-    final_articles = []
-    total = len(search_results)
-    
-    print(f"🧠 [DEBUG] Starting AI Summarization loop for {total} items...")
-
-    for i, res in enumerate(search_results):
-        title = res.get('title', 'Untitled Article')
-        # Optimization: Truncate to 800 chars to stay within context windows and save $
-        truncated = res.get('snippet', '')[:800]
-        
+    # 1. LinkedIn Search (if applicable)
+    if platform in ["linkedin", "both"]:
         try:
-            print(f"  🔄 [LOOP {i+1}/{total}] AI Summarizing: '{title[:30]}...'")
-            summary = summarize_article(truncated)
+            print(f"📡 [DEBUG] Calling search_linkedin for: {query}...")
+            linkedin_results = search_linkedin(query, country=country)
             
-            final_articles.append({
-                "title": title,
-                "link": res.get('link', '#'),
-                "author": "LinkedIn Contributor",
-                "summary": summary
-            })
+            count = len(linkedin_results) if linkedin_results else 0
+            print(f"📥 [DEBUG] LinkedIn search completed. Found {count} raw results.")
             
-        except Exception as ai_err:
-            print(f"    ❌ [AI ERROR] Item {i+1} failed: {ai_err}")
-            continue # Keep going to get the rest of the results
+            # 2. Summarize each LinkedIn result with OpenAI
+            if linkedin_results:
+                print(f"🧠 [DEBUG] Starting AI Summarization loop for {count} LinkedIn items...")
+                
+                for i, res in enumerate(linkedin_results):
+                    title = res.get('title', 'Untitled Article')
+                    # Optimization: Truncate to 800 chars to stay within context windows and save $
+                    truncated = res.get('snippet', '')[:800]
+                    
+                    try:
+                        print(f"  🔄 [LINKEDIN {i+1}/{count}] AI Summarizing: '{title[:30]}...'")
+                        summary = summarize_article(truncated)
+                        
+                        all_articles.append({
+                            "title": title,
+                            "link": res.get('link', '#'),
+                            "author": "LinkedIn Contributor",
+                            "summary": summary,
+                            "platform": "linkedin"
+                        })
+                        
+                    except Exception as ai_err:
+                        print(f"    ❌ [AI ERROR] LinkedIn item {i+1} failed: {ai_err}")
+                        continue
+        
+        except Exception as e:
+            print(f"❌ [LINKEDIN SEARCH ERROR] Critical failure: {e}")
+    
+    # 3. Twitter Search (if applicable)
+    if platform in ["twitter", "both"]:
+        try:
+            print(f"📡 [DEBUG] Calling search_twitter for: {query}...")
+            twitter_results = search_twitter(query, country=country)
+            
+            count = len(twitter_results) if twitter_results else 0
+            print(f"📥 [DEBUG] Twitter search completed. Found {count} raw results.")
+            
+            # 4. Summarize each Twitter result with OpenAI
+            if twitter_results:
+                print(f"🧠 [DEBUG] Starting AI Summarization loop for {count} Twitter items...")
+                
+                for i, res in enumerate(twitter_results):
+                    title = res.get('title', 'Untitled Tweet')
+                    # Optimization: Truncate to 800 chars to stay within context windows and save $
+                    truncated = res.get('snippet', '')[:800]
+                    
+                    try:
+                        print(f"  🔄 [TWITTER {i+1}/{count}] AI Summarizing: '{title[:30]}...'")
+                        summary = summarize_article(truncated)
+                        
+                        all_articles.append({
+                            "title": title,
+                            "link": res.get('link', '#'),
+                            "author": "Twitter Contributor",
+                            "summary": summary,
+                            "platform": "twitter"
+                        })
+                        
+                    except Exception as ai_err:
+                        print(f"    ❌ [AI ERROR] Twitter item {i+1} failed: {ai_err}")
+                        continue
+        
+        except Exception as e:
+            print(f"❌ [TWITTER SEARCH ERROR] Critical failure: {e}")
     
     end_time = time.time()
     duration = round(end_time - start_time, 2)
     
     print(f"\n✨ [WORKER FINISHED]")
-    print(f"📊 Summary: {len(final_articles)}/{total} articles processed.")
+    print(f"📊 Summary: {len(all_articles)} total articles processed.")
     print(f"⏱️ Total Time: {duration}s | Results stored in Redis.")
     
-    return final_articles
+    return all_articles
 
 # =================================================================
 # 📖 THE STORY OF THIS FILE (THE HEAD CHEF)
